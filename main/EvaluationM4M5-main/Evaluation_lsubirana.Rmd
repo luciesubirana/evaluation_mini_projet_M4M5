@@ -200,14 +200,14 @@ module load bwa
 bwa
 # Indexage du génome avec bwa
 bwa index
-srun bwa index 02_Genome/GCF_000009045.1_ASM904v1_genomic.fna.gz
+srun bwa index 02_Genome/GCF_000009045.1_ASM904v1_genomic.fna
 # Run mapping
 bwa mem
 srun --cpus-per-task=32 bwa mem 02_Genome/GCF_000009045.1_ASM904v1_genomic.fna 04_CLEANING/SRR10390685_1.cleaned_filtered.fastq.gz 04_CLEANING/SRR10390685_2.cleaned_filtered.fastq.gz -t 32 > 05_MAPPING/SRR10390685_bwa_alignement.sam
 # Chargement du module samtools
 module load samtools
 # Conversion du fichier sam en bam avec samtools
-srun --cpus-per-task=8 samtools view --threads 8 SRR10390685_bwa_alignement.sam -b > SRR10390685_bwa_alignement.bam
+srun --cpus-per-task=8 samtools view --threads 8 05_MAPPING/SRR10390685_bwa_alignement.sam -b >05_MAPPING/SRR10390685_bwa_alignement.bam
 # Tri du fichier bam
 srun samtools sort SRR10390685_bwa_alignement.bam -o SRR10390685_bwa_alignement.sort.bam
 # Indexage du fichier bam trié
@@ -229,10 +229,23 @@ samtools view -c -f0x4 SRR10390685_bwa_alignement.sam
 Calculez le nombre de reads qui chevauchent avec au moins 50% de leur longueur le gène _trmNF_ grâce à l'outil <strong class="tool">bedtools</strong> @bedtools:
 
 ```{bash}
+# Direction répertoire
+cd ~/01_Mini_projet_Bacillus/01_Data/
+# Chargement du module bedtools
+module load bedtools
 
+# Recherche du gène trmNF dans le fichier d'annotation .gff
+grep trmNF GCF_000009045.1_ASM904v1_genomic.gff | awk '$3=="gene"' > trmNF_gene.gff
+# Récupérez les alignements sur le gène trmNF, avec l'option -f 0.5
+srun bedtools intersect -a 05_MAPPING/SRR10390685_bwa_alignement.sort.bam -b 02_Genome/trmNF_gene.gff -sorted -f 0.5 > 05_MAPPING/SRR10390685_trmNF.bam
+# Tri et indexage des reads
+srun samtools sort 05_MAPPING/SRR10390685_trmNF.bam -o 05_MAPPING/SRR10390685_trmNF.sort.bam
+# Statistiques d'alignement avec idxstats et flagstats
+srun samtools idxstats SRR10390685_trmNF.sort.bam > SRR10390685_trmNF.sort.bam.idxstats
+srun samtools flagstats SRR10390685_trmNF.sort.bam > SRR10390685_trmNF.sort.bam.flagstats
 ```
 
-<code> </code> reads chevauchent le gène d'intérêt.
+<code>2841</code> reads chevauchent le gène d'intérêt.
 
 
 ## Visualisation
